@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import JSZip from 'jszip';
 import { generateSpeechFromTransformed, generatePreviewSpeech, getStaticRecommendation, transformTextToDialect, transformToInfantLanguage } from './services/geminiService';
@@ -105,21 +104,23 @@ const App: React.FC = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  useEffect(() => {
-    const checkKey = async () => {
-      if (window.aistudio?.hasSelectedApiKey) {
-        const selected = await window.aistudio.hasSelectedApiKey();
-        setHasApiKey(selected);
-      }
-    };
-    checkKey();
-  }, []);
+  const handleOpenKeySelector = () => {
+    setShowApiKeyModal(true);
+  };
 
-  const handleOpenKeySelector = async () => {
-    if (window.aistudio?.openSelectKey) {
-      await window.aistudio.openSelectKey();
+  const handleSaveApiKey = () => {
+    if (apiKeyInput.trim()) {
+      localStorage.setItem('gemini_api_key', apiKeyInput.trim());
       setHasApiKey(true);
+      setShowApiKeyModal(false);
     }
+  };
+
+  const handleRemoveApiKey = () => {
+    localStorage.removeItem('gemini_api_key');
+    setApiKeyInput('');
+    setHasApiKey(false);
+    setShowApiKeyModal(false);
   };
 
   const getVoiceTheme = (voiceId: string) => {
@@ -134,7 +135,6 @@ const App: React.FC = () => {
   };
 
   const toggleActorSelection = (voiceId: string, dialectOverride?: string) => {
-    // 표준어일 때는 dialectOverride가 '표준어'로 들어오며, 이때 settingsKey는 voiceId와 같아야 함
     const isStandard = !dialectOverride || dialectOverride === '표준어';
     const settingsKey = isStandard ? voiceId : `${voiceId}_${dialectOverride}`;
     const settings = voiceSettings[settingsKey] || { pitch: 0, speed: 1.0 };
@@ -236,8 +236,7 @@ const App: React.FC = () => {
     };
     updateStyle();
   }, [selectedStyleId, persona.gender, persona.age, persona.dialect, handleStopPlayback]);
-
-  const filteredVoices = useMemo(() => {
+    const filteredVoices = useMemo(() => {
     let baseList = [];
     if (persona.age === '유아') {
       const kidVoiceIds = ['zephyr', 'leda', 'laomedeia', 'achernar'];
@@ -307,7 +306,6 @@ const App: React.FC = () => {
     const baseKey = isVariant ? `${voiceId}-variant` : voiceId;
     const cacheSlotKey = forceSidebarStyle ? `SIDEBAR-seg-${targetIdx}` : (step === 4 ? `${baseKey}-seg-${targetIdx}` : baseKey);
     
-    // 상태 업데이트
     if (isVariant) {
       setActiveVariantId(voiceId);
       setActiveVoiceId(null);
@@ -582,15 +580,31 @@ const App: React.FC = () => {
       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
     </svg>
   );
-
   return (
     <div className="min-h-screen flex flex-col font-sans bg-gray-50 text-gray-900 overflow-hidden">
       <audio ref={audioRef} onEnded={() => setPlayingId(null)} className="hidden" />
+
+      {showApiKeyModal && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowApiKeyModal(false)}>
+          <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl" onClick={e => e.stopPropagation()}>
+            <h3 className="text-xl font-bold text-gray-900 mb-2">Gemini API Key 설정</h3>
+            <p className="text-sm text-gray-500 mb-6">무료 API 키는 <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline font-bold">Google AI Studio</a>에서 발급받을 수 있습니다.</p>
+            <input type="password" value={apiKeyInput} onChange={e => setApiKeyInput(e.target.value)} placeholder="AIzaSy... 형태의 API 키 입력" className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:outline-none focus:border-blue-500 mb-4" />
+            <div className="flex gap-3">
+              <button onClick={handleSaveApiKey} className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-all">저장</button>
+              {hasApiKey && (<button onClick={handleRemoveApiKey} className="px-4 py-3 border-2 border-red-200 text-red-500 font-bold rounded-xl hover:bg-red-50 transition-all">삭제</button>)}
+              <button onClick={() => setShowApiKeyModal(false)} className="px-4 py-3 border-2 border-gray-200 text-gray-400 font-bold rounded-xl hover:bg-gray-50 transition-all">닫기</button>
+            </div>
+            {hasApiKey && (<p className="mt-4 text-xs text-green-600 font-bold text-center">API 키가 설정되어 있습니다</p>)}
+          </div>
+        </div>
+      )}
+
       <header className="bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between sticky top-0 z-50">
         <div className="flex items-center gap-2 cursor-pointer" onClick={() => handleSetStep(1)}><span className="w-8 h-8 bg-blue-600 text-white rounded-lg flex items-center justify-center text-sm italic font-black">S</span><span className="font-black text-gray-900 tracking-tight">DUB STUDIO PRO</span></div>
         <div className="flex items-center gap-4">
           <button onClick={handleReset} className="px-4 py-2 border border-red-200 text-red-500 text-xs font-bold rounded-xl hover:bg-red-50 transition-all shadow-sm">초기화</button>
-          <button onClick={handleOpenKeySelector} className="px-4 py-2 bg-gray-900 text-white text-xs font-bold rounded-xl hover:bg-black transition-all">API Key 설정</button>
+          <button onClick={handleOpenKeySelector} className={`px-4 py-2 text-xs font-bold rounded-xl transition-all ${hasApiKey ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-gray-900 text-white hover:bg-black'}`}>{hasApiKey ? 'API Key ✓' : 'API Key 설정'}</button>
         </div>
       </header>
 
@@ -646,7 +660,6 @@ const App: React.FC = () => {
                     const isActive = activeVoiceId === voice.id && !activeVariantId;
                     const isVariantActive = activeVariantId === voice.id;
                     const isVoiceActiveInAnyWay = activeVoiceId === voice.id || activeVariantId === voice.id;
-
                     const isSelected = !!myActors.find(a => a.voiceId === voice.id && a.persona.dialect === '표준어');
                     const isVariantSelected = !!myActors.find(a => a.voiceId === voice.id && a.persona.dialect === persona.dialect);
                     const isPlaying = playingId === voice.id;
@@ -654,25 +667,18 @@ const App: React.FC = () => {
                     const isGenerating = generatingId === voice.id;
                     const isVariantGenerating = generatingId === `${voice.id}-variant`;
                     const theme = getVoiceTheme(voice.id);
-                    
-                    // 사투리 카드는 추천 성우이거나, 현재 클릭하여 활성화된 성우인 경우 노출
                     const showDialectVariant = persona.dialect !== '표준어' && (isRecommended || isVoiceActiveInAnyWay);
 
                     return (
                       <React.Fragment key={voice.id}>
-                        <div 
-                          onClick={() => handleGeneratePreview(voice.id)}
-                          className={`flex flex-col gap-4 p-5 bg-white rounded-2xl border transition-all shadow-sm cursor-pointer ${isActive ? 'border-blue-500 ring-4 ring-blue-100 shadow-md' : (isRecommended ? 'border-blue-500 shadow-sm' : 'border-gray-100')}`}
-                        >
+                        <div onClick={() => handleGeneratePreview(voice.id)} className={`flex flex-col gap-4 p-5 bg-white rounded-2xl border transition-all shadow-sm cursor-pointer ${isActive ? 'border-blue-500 ring-4 ring-blue-100 shadow-md' : (isRecommended ? 'border-blue-500 shadow-sm' : 'border-gray-100')}`}>
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3 flex-1">
                               <div className={`w-10 h-10 rounded-xl ${theme.bg} ${theme.text} flex items-center justify-center text-xl shadow-sm`}>{theme.icon}</div>
                               <div>
                                 <div className="flex items-center gap-2">
                                   <p className="font-bold text-sm text-gray-900">{voice.name}</p>
-                                  {isRecommended && (
-                                    <span className="bg-blue-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded shadow-sm">AI 추천</span>
-                                  )}
+                                  {isRecommended && (<span className="bg-blue-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded shadow-sm">AI 추천</span>)}
                                 </div>
                                 <span className="text-[9px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded font-bold">{voice.characteristics} / {voice.optimalAge}</span>
                               </div>
@@ -695,12 +701,8 @@ const App: React.FC = () => {
                               </div>
                           </div>
                         </div>
-
                         {showDialectVariant && (
-                          <div 
-                            onClick={() => handleGeneratePreview(voice.id, undefined, false, true)}
-                            className={`flex flex-col gap-4 p-5 bg-blue-50/20 rounded-2xl border-2 border-dashed transition-all animate-fade-in-down cursor-pointer ${isVariantActive ? 'border-blue-500 bg-blue-50/50 shadow-md ring-2 ring-blue-100' : 'border-blue-300'}`}
-                          >
+                          <div onClick={() => handleGeneratePreview(voice.id, undefined, false, true)} className={`flex flex-col gap-4 p-5 bg-blue-50/20 rounded-2xl border-2 border-dashed transition-all animate-fade-in-down cursor-pointer ${isVariantActive ? 'border-blue-500 bg-blue-50/50 shadow-md ring-2 ring-blue-100' : 'border-blue-300'}`}>
                              <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-3">
                                   <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white flex items-center justify-center text-xl shadow-lg">🪄</div>
@@ -758,14 +760,7 @@ const App: React.FC = () => {
           <div className="max-w-4xl mx-auto w-full bg-white rounded-3xl p-10 shadow-sm border border-gray-100 flex flex-col animate-fade-in">
             <h3 className="text-2xl font-bold mb-4 text-gray-800">대본 입력</h3>
             <div className="relative bg-gray-50 rounded-2xl mb-6 overflow-hidden border-2 border-dashed border-gray-200 focus-within:border-blue-300 h-[500px]">
-              <TextAreaInput 
-                text={script} 
-                setText={setScript} 
-                disabled={isLoading} 
-                onTransform={undefined} 
-                isTransforming={isBulkTransforming}
-                hideTags={true}
-              />
+              <TextAreaInput text={script} setText={setScript} disabled={isLoading} onTransform={undefined} isTransforming={isBulkTransforming} hideTags={true} />
             </div>
             <div className="flex gap-4">
               <button onClick={() => handleSetStep(2)} className="flex-1 py-5 border-2 border-gray-100 text-gray-400 font-bold rounded-2xl hover:bg-gray-50 transition-all shadow-sm">이전 단계</button>
@@ -773,138 +768,283 @@ const App: React.FC = () => {
             </div>
           </div>
         )}
-
-        {step === 4 && (
-          <div className="flex-grow flex flex-row gap-6 w-full h-full overflow-hidden animate-fade-in">
-            <div className="flex-grow flex flex-col bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
-              <div className="p-6 border-b border-gray-50 shrink-0 flex items-center justify-between"><h3 className="font-bold text-gray-800 text-lg">대본 편집기</h3><button onClick={() => { handleStopPlayback(); setIsAddingFromStep4(true); handleSetStep(2); }} className="px-4 py-2 bg-gray-100 text-gray-600 text-xs font-bold rounded-xl hover:bg-gray-200 shadow-sm">화자 추가</button></div>
-              <div className="flex-grow overflow-y-auto p-8 space-y-6 custom-scrollbar">
-                {segments.map((seg, idx) => {
-                  const isActive = selectedSegmentIdx === idx;
-                  const castMember = cast[seg.speaker];
-                  const vId = castMember?.voiceId || 'Kore';
-                  const theme = getVoiceTheme(vId);
-                  const cache = getLatestSegmentCache(idx);
-                  const isPlaying = playingId === (`${vId}-seg-${idx}`) || playingId === (`SIDEBAR-seg-${idx}`);
-                  const isGenerating = generatingId === (`${vId}-seg-${idx}`) || generatingId === (`SIDEBAR-seg-${idx}`);
-                  const isTransforming = transformingIdx === idx;
-                  
-                  const targetDialect = castMember?.dialect || persona.dialect;
-                  const isDialectSet = targetDialect !== '표준어';
-                  const isInfantSet = castMember?.age === '유아';
-                  
-                  const history = segmentHistories[idx];
-                  const canUndo = history && history.states.length > 1 && history.pointer > 0;
-
-                  return (
-                    <div key={idx} onClick={() => setSelectedSegmentIdx(idx)} className={`group p-6 rounded-[32px] border-2 transition-all cursor-pointer relative ${isActive ? 'border-blue-500 bg-blue-50/5' : 'border-gray-50 hover:bg-gray-50/50'}`}>
-                       <div className="flex items-center gap-3 mb-4 pr-2">
-                          <div className={`w-8 h-8 rounded-xl ${theme.bg} ${theme.text} flex items-center justify-center text-lg shadow-sm shrink-0`}>{theme.icon}</div>
-                          <span className="font-bold text-gray-900 text-base">{seg.speaker}</span>
-                          <div className="mx-2 flex-grow max-w-[300px]" onClick={(e) => e.stopPropagation()}>
-                            <select 
-                              value={castMember?.actorId || ''} 
-                              onChange={(e) => handleCastChange(idx, seg.speaker, e.target.value)} 
-                              className="w-full pl-3 pr-8 py-1.5 bg-gray-50 border border-gray-200 rounded-xl text-[10px] font-bold text-gray-700 outline-none appearance-none hover:border-blue-400 transition-all shadow-sm"
-                            >
-                              {myActors.map(a => (<option key={a.id} value={a.id}>❤️ {a.displayName}</option>))}
-                              <option value="ADD" className="text-blue-600">+ 성우 추가</option>
-                            </select>
-                          </div>
-                          <div className="ml-auto flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
-                             {isDialectSet && (
-                               <button onClick={() => handleTransformSegment(idx, 'dialect')} disabled={isTransforming} className="px-3 py-1.5 bg-gradient-to-r from-purple-500 to-blue-500 text-white text-[10px] font-bold rounded-xl shadow-md transition-all flex items-center gap-1.5 hover:scale-105 active:scale-95 disabled:opacity-50">🪄 {targetDialect} 변환</button>
-                             )}
-                             {isInfantSet && (
-                               <button onClick={() => handleTransformSegment(idx, 'infant')} disabled={isTransforming} className="px-3 py-1.5 bg-gradient-to-r from-pink-500 to-amber-500 text-white text-[10px] font-bold rounded-xl shadow-md transition-all flex items-center gap-1.5 hover:scale-105 active:scale-95 disabled:opacity-50">🍼 유아 변환</button>
-                             )}
-                             <button onClick={() => handleUndo(idx)} disabled={!canUndo} className="px-3 py-1.5 bg-gray-100 text-gray-500 text-[10px] font-bold rounded-xl shadow-sm transition-all flex items-center gap-1.5 hover:bg-gray-200 disabled:opacity-30">되돌리기</button>
-                             {cache && <button onClick={() => downloadSegment(idx)} className="px-3 py-1.5 bg-gray-900 text-white text-[10px] font-bold rounded-xl shadow-md transition-all flex items-center gap-1.5 hover:bg-black">💾 WAV 저장</button>}
-                            <button onClick={() => handleTogglePlayback(vId, idx, false)} className={`px-4 py-1.5 rounded-xl text-[10px] font-bold flex items-center gap-1.5 transition-all shadow-sm ${isGenerating ? 'bg-blue-50 text-blue-600' : isPlaying ? 'bg-red-600 text-white' : 'bg-blue-600 text-white'}`}>
-                              {isGenerating ? '합성 중' : isPlaying ? '중지' : '미리듣기'}
-                            </button>
-                          </div>
-                       </div>
-                       <textarea ref={el => textAreaRefs.current[idx] = el} onFocus={() => setSelectedSegmentIdx(idx)} className={`w-full bg-[#fcfdfe] border border-gray-100 rounded-3xl p-6 outline-none resize-none text-gray-800 leading-relaxed text-lg font-medium shadow-inner min-h-[120px] focus:border-blue-200 transition-all ${isTransforming ? 'opacity-50 blur-[1px]' : 'opacity-100'}`} value={seg.text} onChange={(e) => { const newS = [...segments]; newS[idx] = { ...newS[idx], text: e.target.value }; setSegments(newS); }} />
-                       <div className="mt-4 flex flex-wrap gap-2">
-                         {ACTING_TAGS.map((tag) => (
-                            <button key={tag.label} onClick={(e) => { e.stopPropagation(); insertEmotionTag(idx, tag.label, tag.value); }} className="px-2.5 py-1.5 bg-white border border-gray-100 text-gray-500 text-[10px] font-bold rounded-lg hover:border-blue-400 hover:text-blue-600 shadow-sm">{tag.label}</button>
-                         ))}
-                       </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-            <aside className="w-[440px] bg-white rounded-3xl border border-gray-100 shadow-sm flex flex-col shrink-0 overflow-hidden">
-              <div className="p-8 flex-grow overflow-y-auto custom-scrollbar space-y-8">
-                <div className="bg-blue-600 p-6 rounded-3xl space-y-6 shadow-xl text-white">
-                   <h3 className="font-black">{activeSegment?.speaker} 실시간 가이드</h3>
-                   <div className="space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2"><label className="text-[10px] font-bold text-blue-100">피치</label><input type="range" min="-5" max="5" value={activeSpeakerCast?.pitch || 0} onChange={(e) => activeSegment && setCast({...cast, [activeSegment.speaker]: {...cast[activeSegment.speaker], pitch: parseInt(e.target.value)}})} className="w-full h-1 bg-white/20 appearance-none accent-white" /></div>
-                        <div className="space-y-2"><label className="text-[10px] font-bold text-blue-100">속도</label><input type="range" min="0.5" max="2.0" step="0.1" value={activeSpeakerCast?.speed || 1.0} onChange={(e) => activeSegment && setCast({...cast, [activeSegment.speaker]: {...cast[activeSegment.speaker], speed: parseFloat(e.target.value)}})} className="w-full h-1 bg-white/20 appearance-none accent-white" /></div>
-                      </div>
-                      <textarea value={activeSegment?.segmentStyle || ""} onChange={(e) => { const newS = [...segments]; newS[selectedSegmentIdx] = { ...newS[selectedSegmentIdx], segmentStyle: e.target.value }; setSegments(newS); }} className="w-full h-24 p-4 bg-white/10 rounded-2xl text-xs outline-none" placeholder="연기 프리셋을 클릭하거나 직접 입력하세요." />
-                      <button onClick={() => handleTogglePlayback(activeSpeakerCast?.voiceId || 'Kore', selectedSegmentIdx, true)} className="w-full py-4 bg-white text-blue-600 font-black rounded-2xl shadow-lg hover:bg-gray-100 transition-all">
-                        {generatingId === `SIDEBAR-seg-${selectedSegmentIdx}` ? '생성 중...' : playingId === `SIDEBAR-seg-${selectedSegmentIdx}` ? '■ 정지' : '▶ 현재 가이드로 미리듣기'}
-                      </button>
-                   </div>
-                </div>
-                <div className="space-y-6">
-                  <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest border-b pb-1">연기 프리셋</h4>
-                  {PRESET_CATEGORIES.map(cat => (
-                    <div key={cat.id} className="space-y-3">
-                      <h5 className="text-[9px] font-bold text-gray-400">{cat.label}</h5>
-                      <div className="flex flex-wrap gap-2">
-                        {cat.presets.map(p => (
-                          <button key={p.label} onClick={() => applySidebarPreset(p.label, p.value)} className="px-3 py-1.5 bg-gray-50 border border-gray-100 text-[10px] font-bold rounded-xl hover:border-blue-400 transition-all">{p.label}</button>
-                        ))}
-                      </div>
-                    </div>
                   ))}
                 </div>
-              </div>
-              <div className="p-8 border-t border-gray-100 flex gap-4">
-                <button onClick={() => handleSetStep(3)} className="flex-1 py-5 border-2 border-gray-100 text-gray-400 font-bold rounded-2xl hover:bg-gray-50 transition-all shadow-sm">이전 단계</button>
-                <button onClick={() => handleSetStep(5)} className="flex-[2] py-5 bg-gray-900 text-white font-black rounded-3xl shadow-xl hover:bg-black transition-all">프로젝트 완성하기</button>
-              </div>
-            </aside>
-          </div>
-        )}
 
-        {step === 5 && (
-          <div className="max-w-4xl mx-auto w-full bg-white rounded-[40px] p-16 shadow-2xl border border-gray-100 text-center flex flex-col items-center">
-            <h2 className="text-3xl font-black mb-10 text-gray-900">더빙이 완료되었습니다! 🎉</h2>
-            <div className="w-full space-y-4 mb-10 overflow-y-auto max-h-[500px] px-4 custom-scrollbar">
-              {segments.map((seg, idx) => {
-                const cache = getLatestSegmentCache(idx);
-                if (!cache) return null;
-                const theme = getVoiceTheme(cast[seg.speaker]?.voiceId);
-                return (
-                  <div key={idx} className="flex items-center gap-6 p-6 bg-white border border-gray-100 rounded-3xl shadow-sm">
-                     <div className={`w-10 h-10 rounded-xl ${theme.bg} ${theme.text} flex items-center justify-center text-lg shadow-sm shrink-0`}>{theme.icon}</div>
-                     <div className="flex-grow text-left">
-                        <div className="font-bold text-gray-900 text-sm">{seg.speaker} <span className="text-gray-400 font-normal italic ml-2">#{idx+1}</span></div>
-                        <p className="text-xs text-gray-500 truncate">{seg.text}</p>
-                     </div>
-                     <button onClick={() => downloadSegment(idx)} className="p-3 bg-blue-50 text-blue-600 rounded-full hover:bg-blue-600 hover:text-white transition-all">↓ WAV</button>
+                {/* 하단 고정 버튼 */}
+                <div className="flex-shrink-0 p-6 border-t border-gray-100">
+                  <button
+                    onClick={() => handleSetStep(4)}
+                    disabled={myActors.length === 0}
+                    className={`w-full py-4 rounded-2xl font-bold text-lg transition-all ${
+                      myActors.length > 0
+                        ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg shadow-blue-200 hover:shadow-xl hover:shadow-blue-300 hover:-translate-y-0.5'
+                        : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    }`}
+                  >
+                    {myActors.length > 0 ? `${myActors.length}명의 성우로 시작하기 →` : '성우를 선택해주세요'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ========== STEP 4: 대본 입력 ========== */}
+          {step === 4 && (
+            <div className="h-full flex flex-col bg-white">
+              {/* 헤더 */}
+              <div className="flex-shrink-0 px-6 pt-6 pb-4">
+                <div className="flex items-center justify-between mb-4">
+                  <button onClick={() => handleSetStep(3)} className="flex items-center gap-2 text-gray-400 hover:text-gray-600 transition-colors">
+                    <span className="text-xl">←</span>
+                    <span className="text-sm font-medium">성우 선택</span>
+                  </button>
+                  <div className="text-xs text-gray-400">STEP 4/5</div>
+                </div>
+                <h2 className="text-2xl font-bold text-gray-900 mb-1">대본 입력</h2>
+                <p className="text-sm text-gray-500">더빙할 대본을 입력하고 캐스팅을 진행하세요</p>
+              </div>
+
+              {/* 대본 입력 영역 */}
+              <div className="flex-1 overflow-y-auto px-6 pb-6">
+                <div className="mb-4">
+                  <TextAreaInput
+                    value={script}
+                    onChange={(val: string) => setScript(val)}
+                    placeholder="대본을 입력하세요...&#10;&#10;예시:&#10;안녕하세요, 오늘의 뉴스를 전해드리겠습니다.&#10;첫 번째 소식입니다."
+                    rows={8}
+                  />
+                </div>
+
+                {script.trim() && (
+                  <button
+                    onClick={handleProcessScript}
+                    disabled={isLoading}
+                    className="w-full py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-xl hover:shadow-lg transition-all disabled:opacity-50"
+                  >
+                    {isLoading ? '분석 중...' : '대본 분석 & 캐스팅 →'}
+                  </button>
+                )}
+
+                {segments.length > 0 && (
+                  <div className="mt-6 space-y-3">
+                    <h3 className="text-sm font-bold text-gray-700 mb-3">세그먼트 ({segments.length}개)</h3>
+                    {segments.map((seg, idx) => (
+                      <div
+                        key={idx}
+                        onClick={() => setSelectedSegmentIdx(idx)}
+                        className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                          selectedSegmentIdx === idx
+                            ? 'border-blue-500 bg-blue-50'
+                            : 'border-gray-200 bg-white hover:border-gray-300'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-xs font-bold text-blue-600">#{idx + 1}</span>
+                          <span className="text-xs text-gray-400">{seg.speaker}</span>
+                        </div>
+                        <p className="text-sm text-gray-800">{seg.text}</p>
+                        {seg.transformedText && (
+                          <p className="text-xs text-purple-600 mt-1 italic">→ {seg.transformedText}</p>
+                        )}
+                      </div>
+                    ))}
                   </div>
-                );
-              })}
+                )}
+
+                {segments.length > 0 && (
+                  <div className="mt-4">
+                    <button
+                      onClick={() => handleSetStep(5)}
+                      className="w-full py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold text-lg rounded-2xl shadow-lg shadow-blue-200 hover:shadow-xl hover:-translate-y-0.5 transition-all"
+                    >
+                      더빙 스튜디오로 이동 →
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
-            <div className="w-full max-w-md space-y-4">
-              <button onClick={handleDownloadZip} className="w-full py-5 bg-blue-600 text-white font-black rounded-3xl shadow-xl hover:bg-blue-700 transition-all flex items-center justify-center gap-3">
-                {isLoading ? '압축 중...' : '모든 파일 일괄 저장 (.zip)'}
+          )}
+
+          {/* ========== STEP 5: 더빙 스튜디오 ========== */}
+          {step === 5 && (
+            <div className="h-full flex flex-col bg-white">
+              {/* 헤더 */}
+              <div className="flex-shrink-0 px-6 pt-6 pb-4 border-b border-gray-100">
+                <div className="flex items-center justify-between mb-4">
+                  <button onClick={() => handleSetStep(4)} className="flex items-center gap-2 text-gray-400 hover:text-gray-600 transition-colors">
+                    <span className="text-xl">←</span>
+                    <span className="text-sm font-medium">대본</span>
+                  </button>
+                  <div className="text-xs text-gray-400">STEP 5/5</div>
+                </div>
+                <h2 className="text-2xl font-bold text-gray-900 mb-1">더빙 스튜디오</h2>
+                <p className="text-sm text-gray-500">각 세그먼트를 생성하고 미리듣기 하세요</p>
+              </div>
+
+              {/* 세그먼트 리스트 */}
+              <div className="flex-1 overflow-y-auto px-6 py-4">
+                <div className="space-y-4">
+                  {segments.map((seg, idx) => {
+                    const castMember = cast.find(c => c.speaker === seg.speaker);
+                    const isGenerating = generatingId === idx;
+                    const isPlaying = playingId === idx;
+                    const cached = previewCache[`seg-${idx}`];
+                    const history = segmentHistories[idx];
+
+                    return (
+                      <div key={idx} className={`p-4 rounded-xl border-2 transition-all ${
+                        selectedSegmentIdx === idx ? 'border-blue-500 bg-blue-50/50' : 'border-gray-200 bg-white'
+                      }`}>
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            <span className="w-7 h-7 flex items-center justify-center bg-blue-100 text-blue-600 text-xs font-bold rounded-full">
+                              {idx + 1}
+                            </span>
+                            <span className="text-sm font-bold text-gray-700">{seg.speaker}</span>
+                            {castMember && (
+                              <span className="text-xs text-gray-400">· {castMember.voiceName}</span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1">
+                            {seg.emotion && (
+                              <span className="text-xs bg-purple-100 text-purple-600 px-2 py-0.5 rounded-full">
+                                {seg.emotion}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        <p className="text-sm text-gray-800 mb-2">{seg.text}</p>
+                        {seg.transformedText && (
+                          <p className="text-xs text-purple-600 mb-3 italic bg-purple-50 px-3 py-1.5 rounded-lg">
+                            → {seg.transformedText}
+                          </p>
+                        )}
+
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleGenerateSegment(idx)}
+                            disabled={isGenerating}
+                            className={`flex-1 py-2.5 text-sm font-bold rounded-xl transition-all ${
+                              isGenerating
+                                ? 'bg-gray-100 text-gray-400'
+                                : 'bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:shadow-md'
+                            }`}
+                          >
+                            {isGenerating ? '생성 중...' : cached ? '재생성' : '음성 생성'}
+                          </button>
+
+                          {cached && (
+                            <>
+                              <button
+                                onClick={() => isPlaying ? handleStopPlayback() : handlePlaySegment(idx)}
+                                className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all ${
+                                  isPlaying
+                                    ? 'bg-red-100 text-red-600'
+                                    : 'bg-green-100 text-green-600 hover:bg-green-200'
+                                }`}
+                              >
+                                {isPlaying ? '■' : '▶'}
+                              </button>
+                            </>
+                          )}
+
+                          {history && history.length > 1 && (
+                            <button
+                              onClick={() => handleUndoSegment(idx)}
+                              className="w-10 h-10 flex items-center justify-center bg-gray-100 text-gray-500 rounded-xl hover:bg-gray-200 transition-all"
+                              title="이전 버전"
+                            >
+                              ↩
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* 일괄 변환 & 다운로드 */}
+                {segments.length > 0 && (
+                  <div className="mt-6 space-y-3 pb-6">
+                    <button
+                      onClick={handleBulkTransform}
+                      disabled={isBulkTransforming}
+                      className="w-full py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold rounded-xl hover:shadow-lg transition-all disabled:opacity-50"
+                    >
+                      {isBulkTransforming ? '일괄 생성 중...' : '전체 세그먼트 일괄 생성'}
+                    </button>
+
+                    {Object.keys(previewCache).length > 0 && (
+                      <button
+                        onClick={handleDownloadAll}
+                        className="w-full py-3 bg-gradient-to-r from-green-600 to-teal-600 text-white font-bold rounded-xl hover:shadow-lg transition-all"
+                      >
+                        전체 다운로드 (ZIP)
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* 숨겨진 오디오 플레이어 */}
+      <audio ref={audioRef} onEnded={handleStopPlayback} className="hidden" />
+
+      {/* API Key 모달 */}
+      {showApiKeyModal && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowApiKeyModal(false)}>
+          <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl" onClick={e => e.stopPropagation()}>
+            <h3 className="text-xl font-bold text-gray-900 mb-2">Gemini API Key 설정</h3>
+            <p className="text-sm text-gray-500 mb-6">
+              무료 API 키는{' '}
+              <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline font-bold">
+                Google AI Studio
+              </a>
+              에서 발급받을 수 있습니다.
+            </p>
+            <input
+              type="password"
+              value={apiKeyInput}
+              onChange={e => setApiKeyInput(e.target.value)}
+              placeholder="AIzaSy... 형태의 API 키 입력"
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:outline-none focus:border-blue-500 mb-4"
+            />
+            <div className="flex gap-3">
+              <button
+                onClick={handleSaveApiKey}
+                className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-all"
+              >
+                저장
               </button>
-              <button onClick={() => handleSetStep(4)} className="w-full py-4 border-2 border-gray-100 text-gray-400 font-bold rounded-2xl hover:bg-gray-50 transition-all shadow-sm">편집기로 돌아가기</button>
-              <button onClick={handleReset} className="w-full text-blue-600 font-bold hover:underline pt-2">새로운 더빙 시작</button>
+              {hasApiKey && (
+                <button
+                  onClick={handleRemoveApiKey}
+                  className="px-4 py-3 border-2 border-red-200 text-red-500 font-bold rounded-xl hover:bg-red-50 transition-all"
+                >
+                  삭제
+                </button>
+              )}
+              <button
+                onClick={() => setShowApiKeyModal(false)}
+                className="px-4 py-3 border-2 border-gray-200 text-gray-400 font-bold rounded-xl hover:bg-gray-50 transition-all"
+              >
+                닫기
+              </button>
             </div>
+            {hasApiKey && (
+              <p className="mt-4 text-xs text-green-600 font-bold text-center">✓ API 키가 설정되어 있습니다</p>
+            )}
           </div>
-        )}
-      </main>
+        </div>
+      )}
     </div>
   );
-};
+}
 
 export default App;
+
