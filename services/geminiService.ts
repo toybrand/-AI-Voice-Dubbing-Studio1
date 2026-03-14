@@ -1,8 +1,18 @@
-
 import { GoogleGenAI, Modality } from "@google/genai";
 import { decode, decodeAudioData } from '../utils/audioUtils';
 import { PersonaSettings, CastMember } from "../types";
 import { AVAILABLE_VOICES } from "../constants";
+
+/**
+ * localStorage에서 API 키를 가져옵니다.
+ */
+function getApiKey(): string {
+  const key = localStorage.getItem('gemini_api_key');
+  if (!key) {
+    throw new Error('API 키가 설정되지 않았습니다. 상단의 "API Key 설정" 버튼을 눌러 키를 입력해주세요.');
+  }
+  return key;
+}
 
 /**
  * 음성 합성 시 괄호 내용을 읽지 않도록 최종 텍스트를 정리합니다.
@@ -15,7 +25,7 @@ function filterParentheses(text: string): string {
  * 텍스트를 특정 사투리로 자연스럽게 변환합니다.
  */
 export async function transformTextToDialect(text: string, dialect: string): Promise<string> {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: getApiKey() });
   const prompt = `
 [SYSTEM: PROFESSIONAL LINGUIST & DIALECT EXPERT]
 Translate the following Korean text into the natural "${dialect}" dialect.
@@ -39,10 +49,9 @@ TEXT TO TRANSLATE:
 
 /**
  * 텍스트를 아주 어린 아기 말투(유아 언어)로 변환합니다.
- * ".."을 문맥에 따라 자연스럽게 섞어 더듬는 듯한 귀여운 효과를 추가합니다.
  */
 export async function transformToInfantLanguage(text: string): Promise<string> {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: getApiKey() });
   const prompt = `
 [SYSTEM: 3-YEAR-OLD INFANT BABBLING SPECIALIST]
 Convert the following text into a 3-year-old child's adorable voice. 
@@ -78,11 +87,10 @@ export async function generateSpeechFromTransformed(
   styleInstruction: string,
   audioContext: AudioContext
 ): Promise<AudioBuffer> {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: getApiKey() });
   const voiceInfo = AVAILABLE_VOICES.find(v => v.id.toLowerCase() === voiceId.toLowerCase());
   const apiVoiceName = voiceInfo?.apiVoiceName || 'Kore';
 
-  // 나이대 판단 (프롬프트 보강용)
   const isInfant = styleInstruction.includes("Tiny Fairy") || styleInstruction.includes("Baby") || styleInstruction.includes("유아");
   const isAge8Child = styleInstruction.includes("Age 8") || styleInstruction.includes("excited elementary school student") || styleInstruction.includes("어린이");
   const isElderly = styleInstruction.includes("Elderly Senior") || styleInstruction.includes("Age 75+") || styleInstruction.includes("노년");
