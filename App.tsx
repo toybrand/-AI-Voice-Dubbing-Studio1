@@ -756,7 +756,7 @@ const App: React.FC = () => {
           </div>
         )}
 
-         {step === 3 && (
+                {step === 3 && (
           <div className="max-w-4xl mx-auto w-full bg-white rounded-3xl p-10 shadow-sm border border-gray-100 flex flex-col animate-fade-in">
             <h3 className="text-2xl font-bold mb-4 text-gray-800">대본 입력</h3>
             <div className="relative bg-gray-50 rounded-2xl mb-6 overflow-hidden border-2 border-dashed border-gray-200 focus-within:border-blue-300 h-[500px]">
@@ -908,6 +908,9 @@ const App: React.FC = () => {
     </div>
   );
 };
+
+export default App;
+
 
 
 export default App;
