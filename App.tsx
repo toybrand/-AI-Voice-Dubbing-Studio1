@@ -776,7 +776,7 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {step === 4 && (
+             {step === 4 && (
           <div className="flex-grow flex flex-row gap-6 w-full h-full overflow-hidden animate-fade-in">
             <div className="flex-grow flex flex-col bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
               <div className="p-6 border-b border-gray-50 shrink-0 flex items-center justify-between"><h3 className="font-bold text-gray-800 text-lg">대본 편집기</h3><button onClick={() => { handleStopPlayback(); setIsAddingFromStep4(true); handleSetStep(2); }} className="px-4 py-2 bg-gray-100 text-gray-600 text-xs font-bold rounded-xl hover:bg-gray-200 shadow-sm">화자 추가</button></div>
@@ -910,8 +910,3 @@ const App: React.FC = () => {
 };
 
 export default App;
-
-
-
-export default App;
-
