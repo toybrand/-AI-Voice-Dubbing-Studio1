@@ -30,7 +30,9 @@ const App: React.FC = () => {
   const [step, setStep] = useState(1);
   const [maxStep, setMaxStep] = useState(1); 
   const [selectedStyleId, setSelectedStyleId] = useState('shorts');
-  const [hasApiKey, setHasApiKey] = useState(false);
+  const [hasApiKey, setHasApiKey] = useState(!!localStorage.getItem('gemini_api_key'));
+  const [showApiKeyModal, setShowApiKeyModal] = useState(false);
+  const [apiKeyInput, setApiKeyInput] = useState(localStorage.getItem('gemini_api_key') || '');
   const [isAddingFromStep4, setIsAddingFromStep4] = useState(false); 
   
   const [persona, setPersona] = useState<PersonaSettings>({ gender: '여성', age: '청년', dialect: '표준어', customStyle: '' });
